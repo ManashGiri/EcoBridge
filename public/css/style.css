@@ -263,15 +263,17 @@ h1 {
     border: none;
     margin-bottom: 2rem;
     background-color: beige;
+    cursor: pointer;
 }
 
 .card-img-top {
+    /* margin-top: 0.8rem; */
     border-radius: 1rem;
     width: 100%;
     object-fit: cover;
 }
 
-.index-img:hover {
+.upload-card .index-img:hover {
     border: 2px solid #16a34a;
     border-radius: 1rem;
 }
@@ -447,6 +449,35 @@ sign up page Start*/
 
 .msgcard {
     background-color: white;
+}
+
+/* Dashboard Page Styling */
+.user-card {
+    border: none;
+    margin-bottom: 2rem;
+    background-color: beige;
+    border-radius: 1rem;
+    margin-right: 2%;
+    box-shadow:  0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.card-top {
+    margin-top: 0.8rem;
+}
+
+.user-img {
+    height: 15rem;
+    border-radius: 1rem;
+}
+
+.user-text {
+    margin-top: 0.2rem;
+    margin-bottom: 0.6rem;
+}
+
+.user-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.7);
 }
 
 /* Animations */

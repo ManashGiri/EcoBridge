@@ -1,0 +1,23 @@
+<% layout("/layouts/boilerplate.ejs") -%>
+
+    <div class="header">
+        <pre><h2>  Admin Dashboard </h2></pre>
+    </div>
+
+    <div class="row row-cols-lg-4 row-cols-md-2 row-cols-sm-1 mt-4">
+        <% for(let user of allUsers) { %>
+            <div class="card col-1 user-card">
+                <img src="<%= user.image.url %>" class="card-top user-img" alt="users_image">
+                <!-- <div class="card-img-overlay"></div> -->
+                <div class="card-body user-text">
+                    <p class="card-text">
+                        <b>
+                            <%= user.username %> <br>
+                            <%= user.warnings %> Warnings <br>
+                            Role: <%= user.role %>
+                        </b> <br>
+                    </p>
+                </div>
+            </div>
+            <% } %>
+    </div>

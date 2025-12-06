@@ -27,7 +27,7 @@ if (process.env.NODE_ENV != "production") {
 const isProduction = process.env.NODE_ENV === "production";
 const refererURL = isProduction ? "https://ecobridge-q2m1.onrender.com/home" : "http://localhost:3000/home";
 
-const MONGO_URL = process.env.DB_URL;
+const MONGO_URL = isProduction ? process.env.DB_URL : "mongodb://localhost:27017/echoBridge";
 
 main()
     .then(() => {
@@ -160,6 +160,9 @@ app.delete('/uploads/:id', isLoggedIn, async (req, res) => {
     }
     let deletedUpload = await Upload.findByIdAndDelete(id);
     let message = `Warning: Admin deleted your upload :- ${deletedUpload?.category} - ${deletedUpload?.description}`;
+    const warnings = upload.owner.warnings + 1;
+    upload.owner.warnings = warnings;
+    await upload.owner.save();
     const notification = new Notification({
         message,
         recipient: upload.owner._id,
@@ -190,7 +193,7 @@ app.get('/profile', isLoggedIn, async (req, res) => {
 });
 
 // Create Route - Needs
-app.post('/profile', isLoggedIn, async (req, res) => {
+app.post('/needs', isLoggedIn, async (req, res) => {
     let needs = req.body.needs;
     const geocoder = NodeGeocoder({
         provider: 'openstreetmap',
@@ -242,7 +245,7 @@ app.put('/needs/:id', isLoggedIn, async (req, res) => {
     res.redirect(`/profile`);
 });
 
-app.post("/photo", upload.single("photo"), async (req, res) => {
+app.post("/profile", upload.single("photo"), async (req, res) => {
     try {
         if (req.user.image.url !== "https://photosnow.net/wp-content/uploads/2024/04/no-dp-mood-off_9.jpg") {
             if (req.user.image && req.user.image.filename) {
@@ -268,6 +271,9 @@ app.get("/accept/:id", isLoggedIn, async (req, res) => {
     await Upload.findByIdAndUpdate(id, { status: "accepted" });
     const ngo = req.user;
     let message = `${ngo.username} accepted your contribution!`;
+    const uploadOwner = await User.findById(upload.owner._id);
+    uploadOwner.ecotokens += 10;
+    await uploadOwner.save();
     const notification = new Notification({
         message,
         recipient: upload.owner._id,
@@ -290,6 +296,17 @@ app.get('/certificate', isLoggedIn, async (req, res) => {
     } else {
         req.flash("error", "Not Enough Ecotokens");
         res.redirect('/profile');
+    }
+});
+
+app.get('/dashboard', isLoggedIn, async (req, res) => {
+    if (req.user.role === 'admin') {
+        const users = await User.find({});
+        const allUsers = users.filter(user => user.role !== 'admin');
+        res.render('main/dashboard.ejs', { allUsers });
+    } else {
+        req.flash("error", "Access Denied");
+        res.redirect('/home');
     }
 });
 

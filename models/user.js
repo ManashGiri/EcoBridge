@@ -26,6 +26,10 @@ const userSchema = new Schema({
     ecotokens: {
         type: Number,
         default: 0,
+    },
+    warnings: {
+        type: Number,
+        default: 0,
     }
 });
 

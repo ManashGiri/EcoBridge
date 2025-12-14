@@ -457,8 +457,9 @@ sign up page Start*/
     margin-bottom: 2rem;
     background-color: beige;
     border-radius: 1rem;
-    margin-right: 2%;
     box-shadow:  0 4px 8px rgba(0, 0, 0, 0.5);
+    box-shadow: 0px 8px 5px -2px rgba(0, 0, 0, 0.3),  /* bottom */
+              0px -8px 5px -2px rgba(0, 0, 0, 0.3); /* top */
 }
 
 .card-top {
@@ -472,12 +473,20 @@ sign up page Start*/
 
 .user-text {
     margin-top: 0.2rem;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.1rem;
 }
 
 .user-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-5px);   
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.7);
+}
+
+.dashboardCard {
+    border-radius: 1rem;
+    margin-bottom: 3rem;
+    width: 24%;
+    padding: 1rem;
+    margin-left: 0.7rem;
 }
 
 /* Animations */

@@ -15,7 +15,7 @@ const MongoStore = require("connect-mongo");
 const passport = require("passport");
 const passportLocal = require("passport-local");
 const session = require("express-session");
-const { saveRedirectUrl, isLoggedIn } = require("./middleware.js");
+const { saveRedirectUrl, isLoggedIn, isAdmin, checkNotBanned } = require("./middleware.js");
 const multer = require('multer');
 const { storage } = require("./cloudConfig.js");
 const upload = multer({ storage });
@@ -131,7 +131,7 @@ app.post('/uploads', isLoggedIn, upload.single('uploads[image]'), async (req, re
     let url = req.file.path;
     let filename = req.file.filename;
     const newUpload = new Upload(uploads);
-    newUpload.owner = req.user._id;
+    newUpload.owner = req.user._id; 
     newUpload.image = { url, filename };
     newUpload.geometry = geometry;
     req.user.ecotokens += 5;
@@ -299,15 +299,68 @@ app.get('/certificate', isLoggedIn, async (req, res) => {
     }
 });
 
-app.get('/dashboard', isLoggedIn, async (req, res) => {
-    if (req.user.role === 'admin') {
+app.get('/dashboard', isLoggedIn, isAdmin, async (req, res) => {
+    try {
         const users = await User.find({});
         const allUsers = users.filter(user => user.role !== 'admin');
-        res.render('main/dashboard.ejs', { allUsers });
-    } else {
-        req.flash("error", "Access Denied");
+        const totalUsers = await User.countDocuments({ role: "user" });
+        const totalNGOs = await User.countDocuments({ role: "ngo" });
+        const totalContributions = await Upload.countDocuments({});
+        const activeUsers = await User.countDocuments({
+            role: { $ne: "admin"},
+            isBanned: { $ne: true }
+        });
+        res.render('main/dashboard.ejs', { allUsers, totalUsers, totalNGOs, totalContributions, activeUsers });
+    } catch (err) {
+        req.flash("error", err.message);
         res.redirect('/home');
     }
+});
+
+// Ban User
+app.get("/users/:id/ban", isAdmin, async (req, res) => {
+  try {
+
+    await User.findByIdAndUpdate(req.params.id, {
+      isBanned: true,
+    });
+
+    req.flash("success", "User Banned Successfully");
+    res.redirect("/dashboard");
+
+  } catch (err) {
+    console.error(err);
+    req.flash("error", "Failed to ban user");
+    res.redirect("/dashboard");
+  }
+});
+
+// Unban User
+app.get("/users/:id/unban", isAdmin, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.params.id, {
+      isBanned: false,
+    });
+
+    req.flash("success", "User Unbanned Successfully");
+    res.redirect("/dashboard");
+
+  } catch (err) {
+    console.error(err);
+    req.flash("error", "Failed to unban user");
+    res.redirect("/dashboard");
+  }
+});
+
+app.delete('/users/:id', isLoggedIn, async (req, res) => {
+    let { id } = req.params;
+    const user = await User.findById(id);
+    if (user.image && user.image.filename) {
+        await cloudinary.uploader.destroy(user.image.filename);
+    }
+    let deletedUpload = await User.findByIdAndDelete(id);
+    req.flash("success", "User Banned Permanently!");
+    res.redirect("/dashboard");
 });
 
 app.get('/signup', (req, res) => {
@@ -337,7 +390,7 @@ app.get('/login', (req, res) => {
     res.render('users/login.ejs');
 });
 
-app.post('/login', saveRedirectUrl, passport.authenticate("local", { failureRedirect: "/login", failureFlash: true }), async (req, res) => {
+app.post('/login', checkNotBanned, saveRedirectUrl, passport.authenticate("local", { failureRedirect: "/login", failureFlash: true }), async (req, res) => {
     let { username } = req.body;
     req.flash("success", `Hi ${username}, now you're all set to explore!`);
     let redirectUrl = res.locals.redirectUrl || "/home";
@@ -368,6 +421,6 @@ app.use((err, req, res, next) => {
     res.status(statusCode).render("includes/error.ejs", { err });
 });
 
-app.listen(3000, () => {
-    console.log("Listening to port 3000");
-});
+app.listen(5000, () => {
+    console.log("Listening to port 5000");
+}); 

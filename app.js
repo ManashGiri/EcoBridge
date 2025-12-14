@@ -15,7 +15,7 @@ const MongoStore = require("connect-mongo");
 const passport = require("passport");
 const passportLocal = require("passport-local");
 const session = require("express-session");
-const { saveRedirectUrl, isLoggedIn } = require("./middleware.js");
+const { saveRedirectUrl, isLoggedIn, isAdmin, checkNotBanned} = require("./middleware.js");
 const multer = require('multer');
 const { storage } = require("./cloudConfig.js");
 const upload = multer({ storage });
@@ -27,7 +27,8 @@ if (process.env.NODE_ENV != "production") {
 const isProduction = process.env.NODE_ENV === "production";
 const refererURL = isProduction ? "https://ecobridge-q2m1.onrender.com/home" : "http://localhost:3000/home";
 
-const MONGO_URL = isProduction ? process.env.DB_URL : "mongodb://localhost:27017/echoBridge";
+// const MONGO_URL = isProduction ? process.env.DB_URL : "mongodb://localhost:27017/echoBridge";
+const MONGO_URL = process.env.DB_URL;
 
 main()
     .then(() => {
@@ -100,6 +101,75 @@ app.get('/needs', isLoggedIn, (req, res) => {
     res.render('main/needs.ejs');
 });
 
+app.get('/dashboard', isLoggedIn, async (req, res) => {
+    if (req.user.role === 'admin') {
+        try {
+            const users = await User.find({});
+            const allUsers = users.filter(user => user.role !== 'admin');
+            const totalUsers = await User.countDocuments({ role: "user" });
+            const totalNGOs = await User.countDocuments({ role: "ngo" });
+            const totalContributions = await Upload.countDocuments({});
+            const activeUsers = await User.countDocuments({
+                role: "user",
+                isBanned: { $ne: true }
+            });
+            res.render('main/dashboard.ejs', { allUsers, totalUsers, totalNGOs, totalContributions, activeUsers });
+        } catch (err) {
+            req.flash("error", err.message);
+            res.redirect('/home');
+        }
+
+    } else {
+        req.flash("error", "Access Denied");
+        res.redirect('/home');
+    }
+});
+
+// Ban User
+app.get("/users/:id/ban", isAdmin, async (req, res) => {
+  try {
+
+    await User.findByIdAndUpdate(req.params.id, {
+      isBanned: true,
+    });
+
+    req.flash("success", "User Banned Successfully");
+    res.redirect("/dashboard");
+
+  } catch (err) {
+    console.error(err);
+    req.flash("error", "Failed to ban user");
+    res.redirect("/dashboard");
+  }
+});
+
+// Unban User
+app.get("/users/:id/unban", isAdmin, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.params.id, {
+      isBanned: false,
+    });
+
+    req.flash("success", "User Unbanned Successfully");
+    res.redirect("/dashboard");
+
+  } catch (err) {
+    console.error(err);
+    req.flash("error", "Failed to unban user");
+    res.redirect("/dashboard");
+  }
+});
+
+app.delete('/users/:id', isLoggedIn, async (req, res) => {
+    let { id } = req.params;
+    const user = await User.findById(id);
+    if (user.image && user.image.filename) {
+        await cloudinary.uploader.destroy(user.image.filename);
+    }
+    let deletedUpload = await User.findByIdAndDelete(id);
+    req.flash("success", "User Banned!");
+    res.redirect("/dashboard");
+});
 
 // Create Route - Uploads
 app.post('/uploads', isLoggedIn, upload.single('uploads[image]'), async (req, res) => {
@@ -299,17 +369,6 @@ app.get('/certificate', isLoggedIn, async (req, res) => {
     }
 });
 
-app.get('/dashboard', isLoggedIn, async (req, res) => {
-    if (req.user.role === 'admin') {
-        const users = await User.find({});
-        const allUsers = users.filter(user => user.role !== 'admin');
-        res.render('main/dashboard.ejs', { allUsers });
-    } else {
-        req.flash("error", "Access Denied");
-        res.redirect('/home');
-    }
-});
-
 app.get('/signup', (req, res) => {
     res.render('users/signup.ejs');
 });
@@ -329,15 +388,17 @@ app.post('/signup', saveRedirectUrl, async (req, res) => {
         });
     } catch (e) {
         req.flash("error", e.message);
-        res.redirect("/signup");
+        return res.render("users/signup.ejs");
     }
 });
 
 app.get('/login', (req, res) => {
-    res.render('users/login.ejs');
+    res.render('users/login.ejs', {
+        error: req.flash("error"),
+    });
 });
 
-app.post('/login', saveRedirectUrl, passport.authenticate("local", { failureRedirect: "/login", failureFlash: true }), async (req, res) => {
+app.post('/login', checkNotBanned, saveRedirectUrl, passport.authenticate("local", { failureRedirect: "/login", failureFlash: true }), async (req, res) => {
     let { username } = req.body;
     req.flash("success", `Hi ${username}, now you're all set to explore!`);
     let redirectUrl = res.locals.redirectUrl || "/home";

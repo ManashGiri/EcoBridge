@@ -5,6 +5,31 @@
     </div>
 
     <div class="row row-cols-lg-4 row-cols-md-2 row-cols-sm-1 mt-4">
+        <div class="dashboardCard" style="background-color: #6B7C93; color: #FFFFFF;">
+            <b class="center" style="font-size: 2rem;">
+                <%= totalUsers %>K
+            </b>
+            <h5 class="center">Total Users</h5>
+        </div>
+        <div class="dashboardCard" style="background-color: #D4A373; color: #FFFFFF;">
+            <b class="center" style="font-size: 2rem;">
+                <%= totalNGOs %>K
+            </b>
+            <h5 class="center">Total NGOs</h5>
+        </div>
+        <div class="dashboardCard" style="background-color: #9A8C98; color: #FFFFFF;">
+            <b class="center" style="font-size: 2rem;">
+                <%= totalContributions %>K
+            </b>
+            <h5 class="center">Total Contributions</h5>
+        </div>
+        <div class="dashboardCard" style="background-color: #7FAF9B; color: #FFFFFF;">
+            <b class="center" style="font-size: 2rem;">
+                <%= activeUsers %>K
+            </b>
+            <h5 class="center">Active Users</h5>
+        </div>
+
         <% for(let user of allUsers) { %>
             <div class="card col-1 user-card">
                 <img src="<%= user.image.url %>" class="card-top user-img" alt="users_image">
@@ -12,11 +37,24 @@
                 <div class="card-body user-text">
                     <p class="card-text">
                         <b>
-                            <%= user.username %> <br>
-                            <%= user.warnings %> Warnings <br>
-                            Role: <%= user.role %>
-                        </b> <br>
-                    </p>
+                        <%= user.username %> - <%= user.role.toUpperCase() %> <br>
+                        <%= user.warnings %> Warnings <br>
+                        <div>
+                            <% if(user.isBanned) { %>
+                                <span style="color: red; font-weight: bold;">BANNED</span> <br>
+                            <div class="d-flex gap-2">
+                                <a href="/users/<%= user._id %>/unban" class="btn btn-success btn-sm">Unban</a>
+                            <% } else { %>
+                                <span style="color: green; font-weight: bold;">ACTIVE</span> <br>
+                            <div class="d-flex gap-2">
+                                <a href="/users/<%= user._id %>/ban" class="btn btn-success btn-sm">Ban</a>
+                            <% } %>
+                            <form action="/users/<%= user._id %>?_method=DELETE" method="post">
+                                <button class="btn btn-danger btn-sm">Delete</button>
+                            </form>
+                            </div>
+                        </div>
+                    </b></p>
                 </div>
             </div>
             <% } %>

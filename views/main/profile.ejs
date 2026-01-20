@@ -37,14 +37,21 @@
                 </div>
 
                 <div class="proopt">
-                    <div class="box2">
-                        <h3 class="headings">🌍 Request an Item</h3>
-                        <% if(!hasNeed) { %>
-                            <a href="/needs" class="prodes"><p class="description">Add Item</p></a>
-                        <% } else { %>
-                            <a href="/needs/<%= existingNeed._id %>/edit" class="prodes"><p class="description">Edit Item</p></a>
-                        <% } %>
-                    </div>
+                    <% if(users.role === "admin") { %>
+                        <div class="box2">
+                            <h3 class="headings">📊 Admin Dashboard</h3>
+                            <a href="/dashboard" class="prodes"><p class="description">Go to Dashboard</p></a>
+                        </div>
+                    <% } else { %>
+                        <div class="box2">
+                            <h3 class="headings">🌍 Request an Item</h3>
+                            <% if(!hasNeed) { %>
+                                <a href="/needs" class="prodes"><p class="description">Add Item</p></a>
+                            <% } else { %>
+                                <a href="/needs/<%= existingNeed._id %>/edit" class="prodes"><p class="description">Edit Item</p></a>
+                            <% } %>
+                        </div>
+                    <% } %>
                     <div class="box2">
                         <h3 class="headings">🔔 Notifications</h3>
                         <a href="/notifications" class="prodes"><p class="description">View Messages</p></a>

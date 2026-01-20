@@ -30,6 +30,10 @@ const userSchema = new Schema({
     warnings: {
         type: Number,
         default: 0,
+    },
+    isBanned: {
+        type: Boolean,
+        default: false,
     }
 });
 

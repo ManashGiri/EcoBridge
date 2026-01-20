@@ -52,10 +52,17 @@
                             <% } %>
                         </div>
                     <% } %>
-                    <div class="box2">
-                        <h3 class="headings">🔔 Notifications</h3>
-                        <a href="/notifications" class="prodes"><p class="description">View Messages</p></a>
-                    </div>
+                    <% if(users.role === "admin") { %>
+                        <div class="box2">
+                            <h3 class="headings">📁 Logs</h3>
+                            <a href="/notifications" class="prodes"><p class="description">View Logs</p></a>
+                        </div>
+                    <% } else { %>
+                        <div class="box2">
+                            <h3 class="headings">🔔 Notifications</h3>
+                            <a href="/notifications" class="prodes"><p class="description">View Messages</p></a>
+                        </div>
+                    <% } %>
                 </div>
             </div>
         </div>

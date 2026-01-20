@@ -47,7 +47,7 @@
                             <% } else { %>
                                 <span style="color: green; font-weight: bold;">ACTIVE</span> <br>
                             <div class="d-flex gap-2">
-                                <a href="/users/<%= user._id %>/ban" class="btn btn-success btn-sm">Ban</a>
+                                <a href="/users/<%= user._id %>/ban" class="btn btn-secondary btn-sm">Ban</a>
                             <% } %>
                             <form action="/users/<%= user._id %>?_method=DELETE" method="post">
                                 <button class="btn btn-danger btn-sm">Delete</button>

@@ -15,7 +15,7 @@ const MongoStore = require("connect-mongo");
 const passport = require("passport");
 const passportLocal = require("passport-local");
 const session = require("express-session");
-const { saveRedirectUrl, isLoggedIn, isAdmin, checkNotBanned} = require("./middleware.js");
+const { saveRedirectUrl, isLoggedIn, isAdmin, checkNotBanned } = require("./middleware.js");
 const multer = require('multer');
 const { storage } = require("./cloudConfig.js");
 const upload = multer({ storage });
@@ -101,6 +101,11 @@ app.get('/needs', isLoggedIn, (req, res) => {
     res.render('main/needs.ejs');
 });
 
+app.get("/notifications", isLoggedIn, async (req, res) => {
+    const notifications = await Notification.find({ recipient: req.user._id }).sort({ createdAt: -1 });
+    res.render("main/notifications.ejs", { notifications });
+});
+
 app.get('/dashboard', isLoggedIn, async (req, res) => {
     if (req.user.role === 'admin') {
         try {
@@ -127,37 +132,58 @@ app.get('/dashboard', isLoggedIn, async (req, res) => {
 
 // Ban User
 app.get("/users/:id/ban", isAdmin, async (req, res) => {
-  try {
+    try {
+        const user = await User.findById(req.params.id);
+        await User.findByIdAndUpdate(req.params.id, {
+            isBanned: true,
+        });
 
-    await User.findByIdAndUpdate(req.params.id, {
-      isBanned: true,
-    });
+        req.flash("success", "User Banned Temporarily!");
+        res.redirect("/dashboard");
 
-    req.flash("success", "User Banned Successfully");
-    res.redirect("/dashboard");
+        const admins = await User.find({ role: "admin" });
+        for (let admin of admins) {
+            const notification = new Notification({
+                message: `User banned: ${user.username}`,
+                recipient: admin._id,
+                sender: req.user._id,
+            });
+            await notification.save();
+        }
 
-  } catch (err) {
-    console.error(err);
-    req.flash("error", "Failed to ban user");
-    res.redirect("/dashboard");
-  }
+    } catch (err) {
+        console.error(err);
+        req.flash("error", "Failed to ban user");
+        res.redirect("/dashboard");
+    }
 });
 
 // Unban User
 app.get("/users/:id/unban", isAdmin, async (req, res) => {
-  try {
-    await User.findByIdAndUpdate(req.params.id, {
-      isBanned: false,
-    });
+    try {
+        const user = await User.findById(req.params.id);
+        await User.findByIdAndUpdate(req.params.id, {
+            isBanned: false,
+        });
 
-    req.flash("success", "User Unbanned Successfully");
-    res.redirect("/dashboard");
+        req.flash("success", "User Unbanned Successfully!");
+        res.redirect("/dashboard");
 
-  } catch (err) {
-    console.error(err);
-    req.flash("error", "Failed to unban user");
-    res.redirect("/dashboard");
-  }
+        const admins = await User.find({ role: "admin" });
+        for (let admin of admins) {
+            const notification = new Notification({
+                message: `User unbanned: ${user.username}`,
+                recipient: admin._id,
+                sender: req.user._id,
+            });
+            await notification.save();
+        }
+
+    } catch (err) {
+        console.error(err);
+        req.flash("error", "Failed to unban user");
+        res.redirect("/dashboard");
+    }
 });
 
 app.delete('/users/:id', isLoggedIn, async (req, res) => {
@@ -167,8 +193,18 @@ app.delete('/users/:id', isLoggedIn, async (req, res) => {
         await cloudinary.uploader.destroy(user.image.filename);
     }
     let deletedUpload = await User.findByIdAndDelete(id);
-    req.flash("success", "User Banned!");
+    req.flash("success", "User Terminated Permanantly!");
     res.redirect("/dashboard");
+
+    const admins = await User.find({ role: "admin" });
+    for (let admin of admins) {
+        const notification = new Notification({
+            message: `User terminated: ${user.username}`,
+            recipient: admin._id,
+            sender: req.user._id,
+        });
+        await notification.save();
+    }
 });
 
 // Create Route - Uploads
@@ -209,6 +245,15 @@ app.post('/uploads', isLoggedIn, upload.single('uploads[image]'), async (req, re
     await newUpload.save();
     req.flash("success", "New Upload Posted!");
     res.redirect("/uploads");
+    const admins = await User.find({ role: "admin" });
+    for (let admin of admins) {
+        const notification = new Notification({
+            message: `New upload posted by ${req.user.username}: ${uploads.category}`,
+            recipient: admin._id,
+            sender: req.user._id,
+        });
+        await notification.save();
+    }
 });
 
 // Show Route - Uploads
@@ -241,6 +286,15 @@ app.delete('/uploads/:id', isLoggedIn, async (req, res) => {
     await notification.save();
     req.flash("success", "Upload Deleted!");
     res.redirect("/home");
+    const admins = await User.find({ role: "admin" });
+    for (let admin of admins) {
+        const notification = new Notification({
+            message: `Upload deleted by admin: ${deletedUpload.category} by ${upload.owner.username}`,
+            recipient: admin._id,
+            sender: req.user._id,
+        });
+        await notification.save();
+    }
 });
 
 app.get('/uploads', isLoggedIn, async (req, res) => {
@@ -296,6 +350,15 @@ app.post('/needs', isLoggedIn, async (req, res) => {
     await newNeed.save();
     req.flash("success", "Requested Item Added!");
     res.redirect("/profile");
+    const admins = await User.find({ role: "admin" });
+    for (let admin of admins) {
+        const notification = new Notification({
+            message: `New need requested by ${req.user.username}: ${needs.category}`,
+            recipient: admin._id,
+            sender: req.user._id,
+        });
+        await notification.save();
+    }
 });
 
 app.get('/needs/:id/edit', isLoggedIn, async (req, res) => {
@@ -306,6 +369,15 @@ app.get('/needs/:id/edit', isLoggedIn, async (req, res) => {
         res.redirect("/profile");
     }
     res.render("main/needEdit.ejs", { need });
+    const admins = await User.find({ role: "admin" });
+    for (let admin of admins) {
+        const notification = new Notification({
+            message: `Need edit accessed by ${req.user.username}: ${need.category}`,
+            recipient: admin._id,
+            sender: req.user._id,
+        });
+        await notification.save();
+    }
 });
 
 app.put('/needs/:id', isLoggedIn, async (req, res) => {
@@ -352,17 +424,30 @@ app.get("/accept/:id", isLoggedIn, async (req, res) => {
     await notification.save();
     req.flash("success", "Upload Accepted!");
     res.redirect(`/uploads/${id}`);
-});
-
-app.get("/notifications", isLoggedIn, async (req, res) => {
-    const notifications = await Notification.find({ recipient: req.user._id }).sort({ createdAt: -1 });
-    res.render("main/notifications.ejs", { notifications });
+    const admins = await User.find({ role: "admin" });
+    for (let admin of admins) {
+        const notification = new Notification({
+            message: `Upload accepted by NGO - ${ngo.username} : ${upload.category} by ${upload.owner.username}`,
+            recipient: admin._id,
+            sender: req.user._id,
+        });
+        await notification.save();
+    }
 });
 
 app.get('/certificate', isLoggedIn, async (req, res) => {
     if (req.user.ecotokens >= 1000) {
         req.flash("success", "Congralutions! You have been certified");
         res.redirect('/profile');
+        const admins = await User.find({ role: "admin" });
+        for (let admin of admins) {
+            const notification = new Notification({
+                message: `User certified: ${req.user.username} with ${req.user.ecotokens} Ecotokens`,
+                recipient: admin._id,
+                sender: req.user._id,
+            });
+            await notification.save();
+        }
     } else {
         req.flash("error", "Not Enough Ecotokens");
         res.redirect('/profile');
@@ -386,6 +471,15 @@ app.post('/signup', saveRedirectUrl, async (req, res) => {
             let redirectUrl = res.locals.redirectUrl || "/home";
             res.redirect(redirectUrl);
         });
+        const admins = await User.find({ role: "admin" });
+        for (let admin of admins) {
+            const notification = new Notification({
+                message: `New user registered: ${username} (${role.toUpperCase()})`,
+                recipient: admin._id,
+                sender: registeredUser._id,
+            });
+            await notification.save();
+        }
     } catch (e) {
         req.flash("error", e.message);
         return res.render("users/signup.ejs");
@@ -403,9 +497,27 @@ app.post('/login', checkNotBanned, saveRedirectUrl, passport.authenticate("local
     req.flash("success", `Hi ${username}, now you're all set to explore!`);
     let redirectUrl = res.locals.redirectUrl || "/home";
     res.redirect(redirectUrl);
+    const admins = await User.find({ role: "admin" });
+    for (let admin of admins) {
+        const notification = new Notification({
+            message: `User logged in: ${username}`,
+            recipient: admin._id,
+            sender: req.user._id,
+        });
+        await notification.save();
+    }
 });
 
-app.get('/logout', (req, res, next) => {
+app.get('/logout', async (req, res, next) => {
+    const admins = await User.find({ role: "admin" });
+    for (let admin of admins) {
+        const notification = new Notification({
+            message: `User logged out: ${req.user.username}`,
+            recipient: admin._id,
+            sender: req.user._id,
+        });
+        await notification.save();
+    }
     req.logout((err) => {
         if (err) {
             return next(err);
